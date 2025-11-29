@@ -6,6 +6,9 @@
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-41BDF5)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+![Tablet Dashboard Example](dashboard.png)
+*Example tablet-optimized dashboard built using this skill - touch-friendly controls, color-coded status, and responsive grid layout*
+
 ## 🚀 What This Skill Does
 
 This Claude Code skill transforms Claude into a **Home Assistant expert** that helps you:
