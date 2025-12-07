@@ -381,6 +381,55 @@ sleep 30
 - No custom cards required
 - Built-in features for controls
 
+**Bubble Card (Modern, Animated):**
+
+> **CRITICAL:** Bubble Card uses **JavaScript templates** (`${}`) for styling, NOT Jinja2 (`{% %}`). This is different from most other HA cards!
+
+```yaml
+type: custom:bubble-card
+card_type: button
+button_type: state
+entity: sensor.office_vpd
+name: Office
+styles: |
+  .bubble-button-background {
+    opacity: 1 !important;
+    background-color: ${state === 'on' ? 'blue' : 'red'} !important;
+  }
+```
+
+**Conditional Styling with Entity Attributes:**
+```yaml
+styles: |
+  .bubble-button-background {
+    opacity: 1 !important;
+    background-color: ${
+      (() => {
+        const status = hass.states['sensor.office_vpd']?.attributes?.status || 'Comfortable';
+        if (status.includes('Comfortable')) return '';
+        if (status.includes('Dry') || status.includes('Humid')) return 'rgba(255, 152, 0, 0.5)';
+        return 'rgba(244, 67, 54, 0.5)';
+      })()
+    } !important;
+  }
+```
+
+**Common Bubble Card CSS Selectors:**
+- `.bubble-button-background` - Main button background
+- `.bubble-button-card-container` - Outer container
+- `.bubble-icon` - Icon element
+- `.bubble-name` - Name text
+- `.bubble-state` - State text
+- `.bubble-sub-button-container` - Sub-button area
+
+**Important Bubble Card Notes:**
+- Always add `!important` to override default styles
+- Use `opacity: 1 !important` to make background fully visible
+- Access entity state: `state` (current entity) or `hass.states['entity.id'].state`
+- Access attributes: `hass.states['entity.id']?.attributes?.attribute_name`
+- Use IIFE `(() => { ... })()` for complex conditional logic
+- Templates are reactive and update automatically
+
 ### Common Template Patterns
 
 **Counting Open Doors:**
