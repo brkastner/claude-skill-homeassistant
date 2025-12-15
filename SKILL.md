@@ -599,6 +599,100 @@ hass-cli state get binary_sensor.front_door
 }
 ```
 
+## Hyprscreens Remote Control (PC Monitor Profiles)
+
+Control hyprscreens monitor profiles from Home Assistant via BBAR or other triggers.
+
+### The Problem
+
+System Bridge's `open_path` cannot execute scripts with arguments because:
+1. System Bridge runs as root, cannot access user's Hyprland socket (`/run/user/1000/hypr/`)
+2. `open_path` uses `xdg-open` which doesn't execute scripts directly
+
+### Solution: TCP Listener
+
+A user-space socat TCP listener accepts connections and runs hyprscreens with proper environment.
+
+### Setup Steps
+
+#### 1. Create wrapper script (`~/.local/bin/hyprscreens-<profile>`)
+```bash
+#!/bin/bash
+export HYPRLAND_INSTANCE_SIGNATURE=$(ls /run/user/1000/hypr/ 2>/dev/null | head -1)
+export XDG_RUNTIME_DIR=/run/user/1000
+exec hyprscreens profile apply <profile_name>
+```
+Make executable: `chmod +x ~/.local/bin/hyprscreens-<profile>`
+
+#### 2. Create systemd user service (`~/.config/systemd/user/hyprscreens-<profile>.service`)
+```ini
+[Unit]
+Description=Hyprscreens <profile> listener
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:<port>,reuseaddr,fork EXEC:/home/kas/.local/bin/hyprscreens-<profile>
+Restart=always
+RestartSec=1
+Environment=HYPRLAND_INSTANCE_SIGNATURE=
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+
+[Install]
+WantedBy=default.target
+```
+
+Enable: `systemctl --user enable --now hyprscreens-<profile>.service`
+
+#### 3. Add HA shell_command (`configuration.yaml`)
+```yaml
+shell_command:
+  hyprscreens_<profile>: "python3 -c \"import socket; s=socket.socket(); s.connect(('192.168.2.100',<port>)); s.close()\""
+```
+**Requires HA restart** (shell_command changes need restart)
+
+#### 4. Create automation (`automations.yaml`)
+```yaml
+- id: 'unique_id'
+  alias: Button Bar - Button X - <Profile> Monitor Profile
+  triggers:
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_ieee: 28:68:47:ff:fe:1c:d0:4e
+      endpoint_id: <button_number>  # 1-4 for BBAR
+      command: remote_button_short_press
+  actions:
+  - action: shell_command.hyprscreens_<profile>
+  mode: single
+```
+
+### Port Assignments (Current)
+- Port 19999: `default` profile (BBAR button 2)
+
+### Dependencies
+- `socat` must be installed: `sudo pacman -S socat`
+
+### Testing
+```bash
+# Test listener locally
+echo "" | socat - TCP:localhost:<port>
+
+# Check service status
+systemctl --user status hyprscreens-<profile>.service
+```
+
+### BBAR Button Endpoints
+- Button 1: endpoint_id: 1
+- Button 2: endpoint_id: 2
+- Button 3: endpoint_id: 3
+- Button 4: endpoint_id: 4
+
+Device IEEE: `28:68:47:ff:fe:1c:d0:4e`
+
+### Full documentation
+See `docs/hyprscreens-remote-control.md` in this repo.
+
 ## Common Commands Quick Reference
 
 ```bash
